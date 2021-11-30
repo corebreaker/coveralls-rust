@@ -1,0 +1,22 @@
+[package]
+name = "coveralls"
+description = "Send job to Coveralls (coveralls.io)"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+regex = "~1.5.4"
+itertools = "~0.10.1"
+simple-error = "~0.2"
+serde_json = "~1.0.71"
+const_format = "~0.2.22"
+git2 = { version = "~0.13.24", optional = true }
+serde = { version = "~1.0.130", features = ["derive"] }
+clap = { version = "~2.33.3", features = ["wrap_help", "color"] }
+reqwest = { version = "~0.11.6", features = ["blocking", "multipart"] }
+
+[features]
+std = []
+use-libgit = ["git2"]
