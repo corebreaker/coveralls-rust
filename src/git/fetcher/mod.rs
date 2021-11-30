@@ -21,6 +21,7 @@ pub(super) enum LogValueKind {
 }
 
 impl LogValueKind {
+    #[cfg(not(feature = "use-libgit"))]
     fn to_format_str(&self) -> &'static str {
         match self {
             Self::Id => "H",

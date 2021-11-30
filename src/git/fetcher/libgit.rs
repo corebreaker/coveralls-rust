@@ -1,6 +1,6 @@
 use super::LogValueKind;
 use regex::Regex;
-use git2::{Oid, Reference, Repository};
+use git2::{Oid, Repository};
 use simple_error::SimpleError;
 use std::io::{Result, Error, ErrorKind};
 
@@ -11,16 +11,13 @@ macro_rules! checked {
     }};
 }
 
-pub(in super::super) struct GitFetcher {
-    repo: Repository,
+struct BranchInfos {
     head_id: Oid,
     branch_name: Option<String>,
-    branch_re: Regex,
 }
 
-impl GitFetcher {
-    pub(in super::super) fn new() -> Result<Self> {
-        let repo = checked! { Repository::open(".") };
+impl BranchInfos {
+    fn from_repo(repo: &Repository) -> Result<Self> {
         let head = checked! { repo.head() };
         let head_id = match head.target() {
             Some(id) => id,
@@ -46,9 +43,29 @@ impl GitFetcher {
             None
         };
 
+        Ok(Self { head_id, branch_name })
+    }
+}
+
+pub(in super::super) struct GitFetcher {
+    repo: Repository,
+    head_id: Oid,
+    branch_name: Option<String>,
+    branch_re: Regex,
+}
+
+impl GitFetcher {
+    pub(in super::super) fn new() -> Result<Self> {
+        let repo = checked! { Repository::open(".") };
+        let infos = BranchInfos::from_repo(&repo)?;
         let branch_re = Regex::new(r"^refs/heads/(.+)$").expect("Bad regex");
 
-        Ok(GitFetcher { repo, head_id, branch_name, branch_re })
+        Ok(GitFetcher {
+            repo,
+            head_id: infos.head_id,
+            branch_name: infos.branch_name,
+            branch_re,
+        })
     }
 
     pub(in super::super) fn get_branch(&self) -> Result<Option<String>> {
