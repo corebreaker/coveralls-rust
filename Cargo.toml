@@ -3,8 +3,31 @@ name = "coveralls"
 description = "Send job to Coveralls (coveralls.io)"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license-file = "LICENSE"
+homepage = "https://github.com/corebreaker/coveralls-rust"
+repository = "https://github.com/corebreaker/coveralls-rust"
+exclude = [".gitignore"]
+categories = [
+    "command-line-utilities",
+    "development-tools",
+    "development-tools::testing",
+    "development-tools::profiling",
+    "development-tools::build-utils",
+    "development-tools::coverage",
+    "continous-integration",
+]
+keywords = [
+    "appveyor",
+    "buildkite",
+    "ci",
+    "circleci",
+    "coverage",
+    "coveralls",
+    "github-actions",
+    "jenkins",
+    "semaphore-ci",
+    "travis-ci",
+]
 
 [dependencies]
 regex = "~1.5.4"
