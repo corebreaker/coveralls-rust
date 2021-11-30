@@ -7,6 +7,7 @@ license-file = "LICENSE"
 homepage = "https://github.com/corebreaker/coveralls-rust"
 repository = "https://github.com/corebreaker/coveralls-rust"
 exclude = [".gitignore"]
+keywords = ["ci", "coverage", "coveralls"]
 categories = [
     "command-line-utilities",
     "development-tools",
@@ -15,18 +16,6 @@ categories = [
     "development-tools::build-utils",
     "development-tools::coverage",
     "continous-integration",
-]
-keywords = [
-    "appveyor",
-    "buildkite",
-    "ci",
-    "circleci",
-    "coverage",
-    "coveralls",
-    "github-actions",
-    "jenkins",
-    "semaphore-ci",
-    "travis-ci",
 ]
 
 [dependencies]
