@@ -1,7 +1,8 @@
 [package]
 name = "coveralls"
 description = "Send job to Coveralls (coveralls.io)"
-version = "0.1.1"
+version = "0.1.2"
+authors = ["Frédéric Meyer <frederic.meyer.77@gmail.com>"]
 edition = "2021"
 license = "LGPL-3.0"
 homepage = "https://github.com/corebreaker/coveralls-rust"
@@ -29,4 +30,4 @@ reqwest = { version = "~0.11.6", features = ["blocking", "multipart"] }
 
 [features]
 std = []
-use-libgit = ["git2"]
+libgit = ["git2"]
