@@ -10,8 +10,6 @@ exclude = [".gitignore"]
 keywords = ["ci", "coverage", "coveralls"]
 categories = [
     "command-line-utilities",
-    "development-tools",
-    "development-tools::testing",
     "development-tools::profiling",
     "development-tools::build-utils",
     "development-tools::coverage",
