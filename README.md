@@ -15,15 +15,15 @@ For installing, you can use Cargo by invoking:
 cargo install coveralls
 ```
 
-## That's weird `coveralls-python` exists, so why another API client ?
+## That's weird [coveralls-python][1] exists, so why another API client ?
 
 The main reason is that `coveralls-python` can only send in `lcov` format.
 But anymore, i saw that the format produced by `grcov` don't remove all dependencies.
 
-Indeed, i used `Lalrpop` in one of my projet,
+Indeed, i used `Lalrpop` in one of my project,
 and the generated file was included in the report produced by `grcov`.*
 Here, we focus on Rust project and we remove all dependencies, on demand with a commend line argument.
-We offer the possibility of including depencies or to filter them, filter all or with an expression (a regex).
+We offer the possibility of including dependencies or to filter them, filter all or with an expression (a regex).
 
 For this moment, we use only Coveralls format as input, but later we could use another formats.
 
@@ -51,3 +51,6 @@ Command line argument `-h` gives a help on configuration.
   + [ ] Lcov
 - [ ] Add other entry points of the Coveralls API
 - [ ] Add comments in code (with docs)
+
+
+[1]: https://github.com/TheKevJames/coveralls-python
