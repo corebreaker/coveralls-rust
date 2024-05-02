@@ -11,6 +11,8 @@ macro_rules! http_try {
 }
 
 pub(super) fn send_to_api(coverage: &Coverage) -> Result<()> {
+    println!("Sending coverage to coveralls.io");
+
     let file = {
         let mut buf = String::new();
         let mut reader = coverage.new_reader()?;
@@ -29,6 +31,7 @@ pub(super) fn send_to_api(coverage: &Coverage) -> Result<()> {
     let status = resp.status();
 
     if status == StatusCode::OK {
+        println!("Coverage sent successfully");
         Ok(())
     } else {
         let text = resp.text().unwrap_or_else(|_| status.to_string());

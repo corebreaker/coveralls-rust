@@ -9,7 +9,7 @@ mod coveralls_env;
 mod github_actions;
 
 use super::{Service, Env, helpers};
-use clap::ArgMatches;
+use crate::cli_args::{CliArgs, CliService, CliServiceArgs};
 use itertools::Itertools;
 use simple_error::SimpleError;
 use std::{io::{Result, Error, ErrorKind}, path::PathBuf};
@@ -66,20 +66,16 @@ impl Config {
         })
     }
 
-    pub fn load_from_command(cmd_name: &str, args: &ArgMatches, env: &Env) -> Result<Config> {
-        let service = match cmd_name {
-            "actions" => Service::GithubActions,
-            "appveyor" => Service::AppVeyor,
-            "buildkite" => Service::BuildKite,
-            "circleci" => Service::CircleCI,
-            "travis" => Service::Travis,
-            "semaphore" => Service::Semaphore,
-            "jenkins" => Service::Jenkins,
-            name => {
-                let msg = format!("Unknown service name: {}", name);
-
-                return Err(Error::new(ErrorKind::Other, SimpleError::new(msg)));
-            }
+    pub fn load_from_command(cli: &CliArgs, env: &Env) -> Result<Option<Config>> {
+        let (service, args) = match &cli.service {
+            CliService::Actions(args) => (Service::GithubActions, args),
+            CliService::AppVeyor(args) => (Service::AppVeyor, args),
+            CliService::BuildKite(args) => (Service::BuildKite, args),
+            CliService::CircleCI(args) => (Service::CircleCI, args),
+            CliService::Jenkins(args) => (Service::Jenkins, args),
+            CliService::Semaphore(args) => (Service::Semaphore, args),
+            CliService::Travis(args) => (Service::Travis, args),
+            CliService::Env => { return Ok(None); }
         };
 
         let mut config = Config::new(service, env)?;
@@ -95,7 +91,7 @@ impl Config {
         }
 
         config.configure(args);
-        Ok(config)
+        Ok(Some(config))
     }
 
     pub fn load_from_environment(env: &Env) -> Result<Option<Config>> {
@@ -130,83 +126,81 @@ impl Config {
         Ok(None)
     }
 
-    fn configure(&mut self, args: &ArgMatches) {
-        if let Some(v) = args.value_of("repo_token") {
-            self.repo_token.replace(v.to_string());
+    fn configure(&mut self, args: &CliServiceArgs) {
+        if let Some(v) = &args.repo_token {
+            self.repo_token.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("flag_name") {
-            self.flag_name.replace(v.to_string());
+        if let Some(v) = &args.flag_name {
+            self.flag_name.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("service_number") {
-            self.service_number.replace(v.to_string());
+        if let Some(v) = &args.service_number {
+            self.service_number.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("service_build_url") {
-            self.service_build_url.replace(v.to_string());
+        if let Some(v) = &args.service_build_url {
+            self.service_build_url.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("service_pull_request") {
-            self.service_pull_request.replace(v.to_string());
+        if let Some(v) = &args.service_pull_request {
+            self.service_pull_request.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("service_job_id") {
-            self.service_job_id.replace(v.to_string());
+        if let Some(v) = &args.service_job_id {
+            self.service_job_id.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("service_job_number") {
-            self.service_job_number.replace(v.to_string());
+        if let Some(v) = &args.service_job_number {
+            self.service_job_number.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_id") {
-            self.repo_token.replace(v.to_string());
+        if let Some(v) = &args.git_id {
+            self.git_id.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_branch") {
-            self.git_id.replace(v.to_string());
+        if let Some(v) = &args.git_branch {
+            self.git_branch.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_message") {
-            self.git_message.replace(v.to_string());
+        if let Some(v) = &args.git_message {
+            self.git_message.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_author_name") {
-            self.git_author_name.replace(v.to_string());
+        if let Some(v) = &args.git_author_name {
+            self.git_author_name.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_author_email") {
-            self.git_author_email.replace(v.to_string());
+        if let Some(v) = &args.git_author_email {
+            self.git_author_email.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_committer_name") {
-            self.git_committer_name.replace(v.to_string());
+        if let Some(v) = &args.git_committer_name {
+            self.git_committer_name.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_committer_email") {
-            self.git_committer_email.replace(v.to_string());
+        if let Some(v) = &args.git_committer_email {
+            self.git_committer_email.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_remote_name") {
-            self.git_remote_name.replace(v.to_string());
+        if let Some(v) = &args.git_remote_name {
+            self.git_remote_name.replace(v.clone());
         }
 
-        if let Some(v) = args.value_of("git_remote_url") {
-            self.git_remote_url.replace(v.to_string());
+        if let Some(v) = &args.git_remote_url {
+            self.git_remote_url.replace(v.clone());
         }
     }
 
-    pub fn init_parameters(mut self, args: &ArgMatches) -> Self {
-        if args.is_present("prune_absolutes") {
-            self.param_prune_absolutes = true;
+    pub fn init_parameters(mut self, args: &CliArgs) -> Self {
+        self.param_prune_absolutes = args.prune_absolutes;
+
+        if let Some(prefix) = &args.source_prefix {
+            self.param_src_prefix.replace(prefix.clone());
         }
 
-        if let Some(prefix) = args.value_of_os("source_prefix") {
-            self.param_src_prefix.replace(PathBuf::from(prefix.to_os_string()));
-        }
-
-        if let Some(dirs) = args.values_of_os("prune_dir") {
-            self.param_prune_dirs = dirs.into_iter().map(|v| PathBuf::from(v.to_os_string())).collect();
+        if let Some(dirs) = &args.prune_dir {
+            self.param_prune_dirs = dirs.clone();
         }
 
         self
@@ -240,5 +234,6 @@ impl Config {
         println!("Git remote name: .... [{}]", self.git_remote_name.as_ref().unwrap_or(&empty));
         println!("Git remote URL: ..... [{}]", self.git_remote_url.as_ref().unwrap_or(&empty));
         println!("Git message: ........ [{}]", self.git_message.as_ref().unwrap_or(&empty));
+        println!();
     }
 }

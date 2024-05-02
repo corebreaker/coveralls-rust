@@ -1,23 +1,17 @@
-use coveralls::{cli_args, CoverallsManager, Coverage, Env, Config};
+use coveralls::{cli_args::CliArgs, CoverallsManager, Coverage, Env, Config};
 use simple_error::SimpleError;
-use std::{io::{Result, Error, stdin}, process::exit, fs::File};
-use std::io::ErrorKind;
+use clap::Parser;
+use std::{io::{Result, ErrorKind, Error, stdin}, process::exit, fs::File};
 
 fn work() -> Result<()> {
-    let args = cli_args::make_args();
+    let args = CliArgs::parse();
     let env = Env::new();
+    let do_send = !args.no_send;
     let config = {
-        let mut config = None;
-
-        if let Some(cmd_name) = args.subcommand_name() {
-            if let Some(args) = args.subcommand_matches(cmd_name) {
-                config.replace(Config::load_from_command(cmd_name, args, &env)?);
-            }
-        }
-
-        if config.is_none() {
-            config = Config::load_from_environment(&env)?;
-        }
+        let config = match Config::load_from_command(&args, &env)? {
+            Some(v) => Some(v),
+            None => Config::load_from_environment(&env)?,
+        };
 
         match config {
             Some(v) => v.init_parameters(&args),
@@ -29,7 +23,7 @@ fn work() -> Result<()> {
 
     let manager = CoverallsManager::new();
 
-    let mut coverage = if let Some(input) = args.value_of("input") {
+    let mut coverage = if let Some(input) = &args.input {
         Coverage::from_reader(File::open(input)?)?
     } else {
         Coverage::from_reader(stdin())?
@@ -37,7 +31,12 @@ fn work() -> Result<()> {
 
     config.show();
     manager.apply_config(&config, &mut coverage)?;
-    manager.send(&coverage)
+
+    if do_send {
+        manager.send(&coverage)?;
+    }
+
+    Ok(())
 }
 
 fn main() {
