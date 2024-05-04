@@ -17,12 +17,12 @@ pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
 
     // Classic
     if let Some(v) = env.get_var("SEMAPHORE_EXECUTABLE_UUID")? {
-        config.service_number.replace(v);
+        config.service_build_number.replace(v);
     }
 
     // 2.0
     if let Some(v) = env.get_var("SEMAPHORE_WORKFLOW_ID")? {
-        config.service_number.replace(v);
+        config.service_build_number.replace(v);
     }
 
     // Classic
