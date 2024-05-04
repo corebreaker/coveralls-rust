@@ -10,7 +10,7 @@ pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     }
 
     if let Some(v) = env.get_var("GITHUB_RUN_ID")? {
-        config.service_number.replace(v);
+        config.service_build_number.replace(v);
     }
 
     if let Some(v) = env.get_github_actions_pull_request()? {

@@ -37,6 +37,10 @@ pub struct CliArgs {
     #[clap(value_name = "file_name", global = true)]
     pub input: Option<PathBuf>,
 
+    /// Use `file` as output file for writing what should be sent to Coveralls
+    #[clap(short='O', long, value_name = "file", global = true)]
+    pub output: Option<PathBuf>,
+
     /// Add a prefix to all files
     #[clap(short='P', long, value_name = "prefix", global = true)]
     pub source_prefix: Option<PathBuf>,
@@ -62,16 +66,17 @@ pub enum CliService {
     /// Service Circle-CI
     #[clap(name = "circleci", after_help = "\
         Used environment variables for Circle-CI:\n\
-        - COVERALLS_REPO_TOKEN:                 Coveralls repo token\n\
-        - CIRCLE_BRANCH:                        Git branch\n\
-        - CIRCLE_WORKFLOW_ID, CIRCLE_BUILD_NUM: Service number\n\
-        - CIRCLE_PULL_REQUEST:                  Service pull request\n\
-        - CIRCLE_BUILD_URL:                     Service build url\n\
-        - CIRCLE_WORKFLOW_JOB_ID:               Service job id\n\
+        - CIRCLE_PULL_REQUEST:    Service pull request\n\
+        - CIRCLE_BUILD_URL:       Service build url\n\
+        - CIRCLE_PROJECT_ID:      Service project ID\n\
+        - CIRCLE_WORKFLOW_JOB_ID: Service job ID\n\
+        - CIRCLE_JOB:             Service job name\n\
+        - CIRCLE_BUILD_NUM:       Service build number\n\
+        - CIRCLE_BRANCH:          Service branch\n\
+        - CIRCLE_TAG:             Service tag\n\
+        - CIRCLE_SHA1:            Service commit ID\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -81,6 +86,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     CircleCI(CliServiceArgs),
@@ -88,7 +94,6 @@ pub enum CliService {
     /// Service Github-Actions
     #[clap(name = "actions", after_help = "\
         Used environment variables for GitHub Actions:\n\
-        - COVERALLS_REPO_TOKEN:        Coveralls repo token\n\
         - GITHUB_REF, GITHUB_HEAD_REF: Git branch\n\
         - GITHUB_RUN_ID:               Service number\n\
         - GITHUB_REF:                  Service pull request\n\
@@ -96,8 +101,6 @@ pub enum CliService {
         - GITHUB_RUN_NUMBER:           Service job number\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -107,6 +110,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     Actions(CliServiceArgs),
@@ -114,16 +118,23 @@ pub enum CliService {
     /// Service AppVeyor
     #[clap(name = "appveyor", after_help = "\
         Used environment variables for AppVeyor:\n\
-        - COVERALLS_REPO_TOKEN:         Coveralls repo token\n\
-        - APPVEYOR_REPO_BRANCH:         Git branch\n\
-        - APPVEYOR_BUILD_NUMBER:        Service number\n\
-        - APPVEYOR_PULL_REQUEST_NUMBER: Service pull request\n\
-        - APPVEYOR_BUILD_ID:            Service job id\n\
-        - APPVEYOR_JOB_NUMBER:          Service job number\n\
+        - APPVEYOR_PROJECT_ID:               Service project ID\n\
+        - APPVEYOR_BUILD_ID:                 Service build id\n\
+        - APPVEYOR_BUILD_NUMBER:             Service number\n\
+        - APPVEYOR_BUILD_VERSION:            Service build version\n\
+        - APPVEYOR_PULL_REQUEST_NUMBER:      Service pull request\n\
+        - APPVEYOR_JOB_ID:                   Service job id\n\
+        - APPVEYOR_JOB_NUMBER:               Service job number\n\
+        - APPVEYOR_JOB_NAME:                 Service job name\n\
+        - APPVEYOR_REPO_BRANCH:              Service repo branch\n\
+        - APPVEYOR_REPO_NAME:                Service repo name\n\
+        - APPVEYOR_REPO_TAG_NAME:            Service repo tag name\n\
+        - APPVEYOR_REPO_COMMIT:              Service repo commit ID\n\
+        - APPVEYOR_REPO_COMMIT_MESSAGE:      Service repo commit message\n\
+        - APPVEYOR_REPO_COMMIT_AUTHOR:       Service repo commit author\n\
+        - APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL: Service repo commit email\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -133,6 +144,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     AppVeyor(CliServiceArgs),
@@ -140,16 +152,21 @@ pub enum CliService {
     /// Service BuildKite
     #[clap(name = "buildkite", after_help = "\
         Used environment variables for BuildKite:\n\
-        - COVERALLS_REPO_TOKEN:   Coveralls repo token\n\
-        - BUILDKITE_BRANCH:       Git branch\n\
-        - BUILDKITE_BUILD_NUMBER: Service number\n\
-        - BUILDKITE_PULL_REQUEST: Service pull request\n\
-        - BUILDKITE_BUILD_URL:    Service build url\n\
-        - BUILDKITE_JOB_ID:       Service job id\n\
+        - BUILDKITE_COMMIT:              Service commit ID\n\
+        - BUILDKITE_MESSAGE:             Service message\n\
+        - BUILDKITE_BRANCH:              Service branch\n\
+        - BUILDKITE_TAG:                 Service tag\n\
+        - BUILDKITE_PULL_REQUEST:        Service pull request\n\
+        - BUILDKITE_JOB_ID:              Service job id\n\
+        - BUILDKITE_BUILD_ID :           Service build ID\n\
+        - BUILDKITE_BUILD_URL:           Service build url\n\
+        - BUILDKITE_BUILD_NUMBER:        Service number\n\
+        - BUILDKITE_BUILD_AUTHOR:        Service build author\n\
+        - BUILDKITE_BUILD_AUTHOR_EMAIL:  Service build author email\n\
+        - BUILDKITE_BUILD_CREATOR:       Service build creator\n\
+        - BUILDKITE_BUILD_CREATOR_EMAIL: Service build creator email\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -159,6 +176,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     BuildKite(CliServiceArgs),
@@ -166,7 +184,6 @@ pub enum CliService {
     /// Service Travis
     #[clap(name = "travis", after_help = "\
         Used environment variables for Travis-CI:\n\
-        - COVERALLS_REPO_TOKEN: Coveralls repo token\n\
         - TRAVIS_BRANCH:        Git branch\n\
         - TRAVIS_BUILD_NUMBER:  Service number\n\
         - TRAVIS_PULL_REQUEST:  Service pull request\n\
@@ -175,8 +192,6 @@ pub enum CliService {
         - TRAVIS_JOB_NUMBER:    Service job number\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -186,6 +201,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     Travis(CliServiceArgs),
@@ -193,7 +209,6 @@ pub enum CliService {
     /// Service Semaphore-CI
     #[clap(name = "semaphore", after_help = "\
         Used environment variables for Semaphore-CI:\n\
-        - COVERALLS_REPO_TOKEN:                             Coveralls repo token\n\
         - SEMAPHORE_GIT_BRANCH:                             Git branch\n\
         - SEMAPHORE_EXECUTABLE_UUID, SEMAPHORE_WORKFLOW_ID: Service number\n\
         - SEMAPHORE_BRANCH_ID, SEMAPHORE_GIT_PR_NUMBER:     Service pull request\n\
@@ -201,8 +216,6 @@ pub enum CliService {
         - SEMAPHORE_WORKFLOW_NUMBER:                        Service job number\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -212,6 +225,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     Semaphore(CliServiceArgs),
@@ -219,15 +233,12 @@ pub enum CliService {
     /// Service Jenkins
     #[clap(name = "jenkins", after_help = "\
         Used environment variables for Jenkins:\n\
-        - COVERALLS_REPO_TOKEN: Coveralls repo token\n\
         - BUILD_NUMBER:         Service number\n\
         - CI_PULL_REQUEST:      Service pull request\n\
         - BUILD_URL:            Service build url\n\
         - BUILD_ID:             Service job id\n\
         \n\
         Common environment variables:\n\
-        - COVERALLS_REPO_TOKEN:    Coveralls repo token\n\
-        - COVERALLS_FLAG_NAME:     Coveralls flag name\n\
         - GIT_ID:                  Git ID\n\
         - GIT_MESSAGE:             Git message\n\
         - GIT_AUTHOR_NAME:         Git author name\n\
@@ -237,6 +248,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     Jenkins(CliServiceArgs),
@@ -244,15 +256,27 @@ pub enum CliService {
     /// Guess service from environment
     #[clap(name = "env", after_help = "\
         Used environment variables in a generic context:\n\
-        - COVERALLS_REPO_TOKEN: Coveralls repo token\n\
-        - CI_NAME:              Service name: \
+        - CI_NAME:            Service name: \
             circleci, travis-ci, appveyor, jenkins, semaphore-ci, github-actions, buildkite\n\
-        - CI_BUILD_NUMBER:      Service number\n\
-        - CI_BUILD_URL:         Service build URL\n\
-        - CI_JOB_ID:            Service job ID\n\
-        - CI_JOB_NUMBER:        Service job number\n\
-        - CI_PULL_REQUEST:      Service pull request\n\
-        - CI_BRANCH:            Git branch\n\
+        - CI_JOB_ID:          Service job ID\n\
+        - CI_JOB_NUMBER:      Service job number\n\
+        - CI_PULL_REQUEST:    Service pull request\n\
+        - CI_PROJECT_ID:      Service project ID\n\
+        - CI_BUILD_ID:        Service build ID\n\
+        - CI_BUILD_VERSION:   Service build version\n\
+        - CI_BUILD_NUMBER:    Service number\n\
+        - CI_BUILD_URL:       Service build URL\n\
+        - CI_JOB_NAME:        Service job name\n\
+        - CI_REPO_NAME:       Service repo name\n\
+        - CI_COMMIT:          Service commit ID\n\
+        - CI_REMOTE:          Service remote name\n\
+        - CI_REMOTE_URL:      Service remote URL\n\
+        - CI_AUTHOR_NAME:     Service author name\n\
+        - CI_AUTHOR_EMAIL:    Service author email\n\
+        - CI_COMMITER_NAME:   Service committer name\n\
+        - CI_COMMITTER_EMAIL: Service committer email\n\
+        - CI_BRANCH:          Service branch\n\
+        - CI_TAG:             Service tag\n\
         \n\
         Used environment variables with Coveralls variables:
         - COVERALLS_REPO_TOKEN:         Coveralls repo token\n\
@@ -277,6 +301,7 @@ pub enum CliService {
         - GIT_REMOTE:              Git remote name\n\
         - GIT_URL:                 Git remote URL\n\
         - GIT_BRANCH, BRANCH_NAME: Git branch\n\
+        - GIT_TAG:                 Git tag\n\
         \n\
     ")]
     Env,
@@ -292,9 +317,21 @@ pub struct CliServiceArgs {
     #[clap(short='f', long, value_name = "flag_name")]
     pub flag_name: Option<String>,
 
-    /// Service number
-    #[clap(short='s', long, value_name = "service_number")]
-    pub service_number: Option<String>,
+    /// Project ID
+    #[clap(short='P', long, value_name = "id")]
+    pub project_id: Option<String>,
+
+    /// Service build ID
+    #[clap(short='b', long, value_name = "build_id")]
+    pub service_build_id: Option<String>,
+
+    /// Service build number
+    #[clap(short='s', long, value_name = "build_number")]
+    pub service_build_number: Option<String>,
+
+    /// Service build version
+    #[clap(short='v', long, value_name = "build_version")]
+    pub service_build_version: Option<String>,
 
     /// Service build URL
     #[clap(short='u', long, value_name = "url")]
@@ -308,20 +345,32 @@ pub struct CliServiceArgs {
     #[clap(short='j', long, value_name = "job_id")]
     pub service_job_id: Option<String>,
 
+    /// Service job name
+    #[clap(short='n', long, value_name = "job_name")]
+    pub service_job_name: Option<String>,
+
     /// Service job number
-    #[clap(short='n', long, value_name = "job_number")]
+    #[clap(short='i', long, value_name = "job_number")]
     pub service_job_number: Option<String>,
 
+    /// Service repo name
+    #[clap(short='r', long, value_name = "name")]
+    pub service_repo_name: Option<String>,
+
     /// Git ID
-    #[clap(short='k', long, value_name = "id")]
+    #[clap(short='K', long, value_name = "id")]
     pub git_id: Option<String>,
 
     /// Git branch
-    #[clap(short='b', long, value_name = "branch")]
+    #[clap(short='B', long, value_name = "branch")]
     pub git_branch: Option<String>,
 
+    /// Git tag
+    #[clap(short='T', long, value_name = "tag")]
+    pub git_tag: Option<String>,
+
     /// Git message
-    #[clap(short='m', long, value_name = "message")]
+    #[clap(short='M', long, value_name = "message")]
     pub git_message: Option<String>,
 
     /// Git author name
@@ -341,7 +390,7 @@ pub struct CliServiceArgs {
     pub git_committer_email: Option<String>,
 
     /// Git remote name
-    #[clap(short='r', long, value_name = "name")]
+    #[clap(short='N', long, value_name = "name")]
     pub git_remote_name: Option<String>,
 
     /// Git remote URL

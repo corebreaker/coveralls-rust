@@ -18,12 +18,18 @@ pub struct Config {
     pub(crate) service: Service,
     pub(crate) flag_name: Option<String>,
     pub(crate) repo_token: Option<String>,
-    pub(crate) service_number: Option<String>,
+    pub(crate) service_project_id: Option<String>,
+    pub(crate) service_build_id: Option<String>,
+    pub(crate) service_build_version: Option<String>,
+    pub(crate) service_build_number: Option<String>,
     pub(crate) service_build_url: Option<String>,
     pub(crate) service_pull_request: Option<String>,
     pub(crate) service_job_id: Option<String>,
+    pub(crate) service_job_name: Option<String>,
     pub(crate) service_job_number: Option<String>,
+    pub(crate) service_repo_name: Option<String>,
     pub(crate) git_id: Option<String>,
+    pub(crate) git_tag: Option<String>,
     pub(crate) git_branch: Option<String>,
     pub(crate) git_message: Option<String>,
     pub(crate) git_author_name: Option<String>,
@@ -43,11 +49,16 @@ impl Config {
             service,
             flag_name: env.get_var("COVERALLS_FLAG_NAME")?,
             repo_token: env.get_var("COVERALLS_REPO_TOKEN")?,
-            service_number: None,
+            service_project_id: None,
+            service_build_id: None,
+            service_build_version: None,
+            service_build_number: None,
             service_build_url: None,
             service_pull_request: None,
             service_job_id: None,
+            service_job_name: None,
             service_job_number: None,
+            service_repo_name: None,
             param_prune_absolutes: false,
             param_prune_dirs: vec![],
             param_src_prefix: None,
@@ -59,10 +70,11 @@ impl Config {
             git_committer_email: env.get_var("GIT_COMMITTER_EMAIL")?,
             git_remote_name: env.get_var("GIT_REMOTE")?,
             git_remote_url: env.get_var("GIT_URL")?,
+            git_tag: env.get_var("GIT_TAG")?,
             git_branch: match env.get_var("GIT_BRANCH")? {
                 Some(v) => Some(v),
                 None => env.get_var("BRANCH_NAME")?,
-            }
+            },
         })
     }
 
@@ -127,16 +139,28 @@ impl Config {
     }
 
     fn configure(&mut self, args: &CliServiceArgs) {
-        if let Some(v) = &args.repo_token {
-            self.repo_token.replace(v.clone());
-        }
-
         if let Some(v) = &args.flag_name {
             self.flag_name.replace(v.clone());
         }
 
-        if let Some(v) = &args.service_number {
-            self.service_number.replace(v.clone());
+        if let Some(v) = &args.repo_token {
+            self.repo_token.replace(v.clone());
+        }
+
+        if let Some(v) = &args.service_repo_name {
+            self.service_repo_name.replace(v.clone());
+        }
+
+        if let Some(v) = &args.service_build_id {
+            self.service_build_id.replace(v.clone());
+        }
+
+        if let Some(v) = &args.service_build_number {
+            self.service_build_number.replace(v.clone());
+        }
+
+        if let Some(v) = &args.service_build_version {
+            self.service_build_version.replace(v.clone());
         }
 
         if let Some(v) = &args.service_build_url {
@@ -151,6 +175,10 @@ impl Config {
             self.service_job_id.replace(v.clone());
         }
 
+        if let Some(v) = &args.service_job_name {
+            self.service_job_name.replace(v.clone());
+        }
+
         if let Some(v) = &args.service_job_number {
             self.service_job_number.replace(v.clone());
         }
@@ -161,6 +189,10 @@ impl Config {
 
         if let Some(v) = &args.git_branch {
             self.git_branch.replace(v.clone());
+        }
+
+        if let Some(v) = &args.git_tag {
+            self.git_tag.replace(v.clone());
         }
 
         if let Some(v) = &args.git_message {
@@ -212,28 +244,33 @@ impl Config {
         let source_prefix = self.param_src_prefix.as_ref().map(helpers::path_to_string).unwrap_or_else(String::new);
 
         println!("Parameters:");
-        println!("Prune absolute paths: {}", self.param_prune_absolutes);
-        println!("Prune directories: .. [{}]", prune_dirs);
-        println!("Source prefix: ...... [{}]", source_prefix);
+        println!("Prune absolute paths:  {}", self.param_prune_absolutes);
+        println!("Prune directories: ... [{}]", prune_dirs);
+        println!("Source prefix: ....... [{}]", source_prefix);
         println!();
         println!("Configuration:");
-        println!("Service name: ....... {}", self.service.get_name());
-        println!("Repo token: ......... [{}]", self.repo_token.as_ref().unwrap_or(&empty));
-        println!("Flag name: .......... [{}]", self.flag_name.as_ref().unwrap_or(&empty));
-        println!("Service number: ..... [{}]", self.service_number.as_ref().unwrap_or(&empty));
-        println!("Service build URL: .. [{}]", self.service_build_url.as_ref().unwrap_or(&empty));
-        println!("Service pull request: [{}]", self.service_pull_request.as_ref().unwrap_or(&empty));
-        println!("Service job id: ..... [{}]", self.service_job_id.as_ref().unwrap_or(&empty));
-        println!("Service job number: . [{}]", self.service_job_number.as_ref().unwrap_or(&empty));
-        println!("Git ID: ............. [{}]", self.git_id.as_ref().unwrap_or(&empty));
-        println!("Git branch: ......... [{}]", self.git_branch.as_ref().unwrap_or(&empty));
-        println!("Git author name: .... [{}]", self.git_author_name.as_ref().unwrap_or(&empty));
-        println!("Git author email: ... [{}]", self.git_author_email.as_ref().unwrap_or(&empty));
-        println!("Git committer name: . [{}]", self.git_committer_name.as_ref().unwrap_or(&empty));
-        println!("Git committer email:  [{}]", self.git_committer_email.as_ref().unwrap_or(&empty));
-        println!("Git remote name: .... [{}]", self.git_remote_name.as_ref().unwrap_or(&empty));
-        println!("Git remote URL: ..... [{}]", self.git_remote_url.as_ref().unwrap_or(&empty));
-        println!("Git message: ........ [{}]", self.git_message.as_ref().unwrap_or(&empty));
+        println!("Service name: ........ {}", self.service.get_name());
+        println!("Repo token: .......... [{}]", self.repo_token.as_ref().unwrap_or(&empty));
+        println!("Repo name: ........... [{}]", self.service_repo_name.as_ref().unwrap_or(&empty));
+        println!("Flag name: ........... [{}]", self.flag_name.as_ref().unwrap_or(&empty));
+        println!("Service build ID: .... [{}]", self.service_build_id.as_ref().unwrap_or(&empty));
+        println!("Service build number:  [{}]", self.service_build_number.as_ref().unwrap_or(&empty));
+        println!("Service build version: [{}]", self.service_build_version.as_ref().unwrap_or(&empty));
+        println!("Service build URL: ... [{}]", self.service_build_url.as_ref().unwrap_or(&empty));
+        println!("Service pull request:  [{}]", self.service_pull_request.as_ref().unwrap_or(&empty));
+        println!("Service job ID: ...... [{}]", self.service_job_id.as_ref().unwrap_or(&empty));
+        println!("Service job name: .... [{}]", self.service_job_name.as_ref().unwrap_or(&empty));
+        println!("Service job number: .. [{}]", self.service_job_number.as_ref().unwrap_or(&empty));
+        println!("Git ID: .............. [{}]", self.git_id.as_ref().unwrap_or(&empty));
+        println!("Git branch: .......... [{}]", self.git_branch.as_ref().unwrap_or(&empty));
+        println!("Git tag: ............. [{}]", self.git_tag.as_ref().unwrap_or(&empty));
+        println!("Git author name: ..... [{}]", self.git_author_name.as_ref().unwrap_or(&empty));
+        println!("Git author email: .... [{}]", self.git_author_email.as_ref().unwrap_or(&empty));
+        println!("Git committer name: .. [{}]", self.git_committer_name.as_ref().unwrap_or(&empty));
+        println!("Git committer email: . [{}]", self.git_committer_email.as_ref().unwrap_or(&empty));
+        println!("Git remote name: ..... [{}]", self.git_remote_name.as_ref().unwrap_or(&empty));
+        println!("Git remote URL: ...... [{}]", self.git_remote_url.as_ref().unwrap_or(&empty));
+        println!("Git message: ......... [{}]", self.git_message.as_ref().unwrap_or(&empty));
         println!();
     }
 }

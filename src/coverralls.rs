@@ -35,7 +35,7 @@ impl CoverallsManager {
             coverage.flag_name.replace(v.clone());
         }
 
-        if let Some(v) = config.service_number.as_ref() {
+        if let Some(v) = config.service_build_number.as_ref() {
             coverage.service_number = v.clone();
         }
 
