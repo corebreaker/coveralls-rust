@@ -2,7 +2,7 @@ use super::git::GitInfos;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Result};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SourceFile {
     pub(crate) name: String,
     pub(crate) source_digest: String,
@@ -60,5 +60,9 @@ impl Coverage {
 
     pub fn new_reader(&self) -> Result<Box<dyn Read>> {
         Ok(Box::new(Cursor::new(serde_json::to_string(&self)?)))
+    }
+
+    pub fn git(&self) -> Option<&GitInfos> {
+        self.git.as_ref()
     }
 }

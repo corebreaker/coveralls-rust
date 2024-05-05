@@ -29,8 +29,8 @@ fn work() -> Result<()> {
         Coverage::from_reader(stdin())?
     };
 
-    config.show();
-    manager.apply_config(&config, &mut coverage)?;
+    manager.apply_config(&config, &mut coverage, args.force_fetch_git_infos)?;
+    config.show(coverage.git());
 
     if do_send {
         manager.send(&coverage)?;
