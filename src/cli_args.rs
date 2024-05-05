@@ -49,6 +49,10 @@ pub struct CliArgs {
     #[clap(short='D', long, value_name = "dir", global = true)]
     pub prune_dir: Option<Vec<PathBuf>>,
 
+    /// Force fetching of repository informations from Git
+    #[clap(short='F', long, value_name = "dir", global = true)]
+    pub force_fetch_git_infos: bool,
+
     /// Prune absolute paths
     #[clap(short='X', long, global = true)]
     pub prune_absolutes: bool,

@@ -9,12 +9,17 @@ impl CoverallsManager {
         CoverallsManager
     }
 
-    pub fn apply_config(&self, config: &Config, coverage: &mut Coverage) -> Result<()> {
+    pub fn apply_config(&self, config: &Config, coverage: &mut Coverage, mut fetch_git_infos: bool) -> Result<()> {
         coverage.service_name = config.service.get_name().to_string();
 
         if let Some(infos) = coverage.git.as_mut() {
             infos.update(config)?;
         } else {
+            fetch_git_infos = true;
+        }
+
+        if fetch_git_infos {
+            println!("Fetching git infos...");
             let mut infos = GitInfos::default();
 
             infos.update(config)?;

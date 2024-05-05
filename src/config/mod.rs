@@ -9,7 +9,7 @@ mod coveralls_env;
 mod github_actions;
 
 use super::{Service, Env, helpers};
-use crate::cli_args::{CliArgs, CliService, CliServiceArgs};
+use crate::{cli_args::{CliArgs, CliService, CliServiceArgs}, git::GitInfos};
 use itertools::Itertools;
 use simple_error::SimpleError;
 use std::{io::{Result, Error, ErrorKind}, path::PathBuf};
@@ -238,16 +238,32 @@ impl Config {
         self
     }
 
-    pub fn show(&self) {
+    pub fn show(&self, git: Option<&GitInfos>) {
         let empty = String::new();
         let prune_dirs = self.param_prune_dirs.iter().map(helpers::path_to_string).join(", ");
         let source_prefix = self.param_src_prefix.as_ref().map(helpers::path_to_string).unwrap_or_else(String::new);
 
+        let git_id = self.git_id.as_ref().or_else(|| git.map(|v| &v.head.id));
+        let git_tag = self.git_tag.as_ref();
+        let git_branch = self.git_branch.as_ref().or_else(|| git.map(|v| &v.branch));
+        let git_author_name = self.git_author_name.as_ref().or_else(|| git.map(|v| &v.head.author_name));
+        let git_author_email = self.git_author_email.as_ref().or_else(|| git.map(|v| &v.head.author_email));
+        let git_committer_name = self.git_committer_name.as_ref().or_else(|| git.map(|v| &v.head.committer_name));
+        let git_committer_email = self.git_committer_email.as_ref().or_else(|| git.map(|v| &v.head.committer_email));
+        let git_message = self.git_message.as_ref().or_else(|| git.map(|v| &v.head.message));
+
+        let git_remote_name = self.git_remote_name.as_ref()
+            .or_else(|| git.and_then(|v| v.remotes.get(0).map(|v| &v.name)));
+
+        let git_remote_url = self.git_remote_url.as_ref()
+            .or_else(|| git.and_then(|v| v.remotes.get(0).map(|v| &v.url)));
+
         println!("Parameters:");
         println!("Prune absolute paths:  {}", self.param_prune_absolutes);
-        println!("Prune directories: ... [{}]", prune_dirs);
-        println!("Source prefix: ....... [{}]", source_prefix);
+        println!("Prune directories: ... [{prune_dirs}]");
+        println!("Source prefix: ....... [{source_prefix}]");
         println!();
+
         println!("Configuration:");
         println!("Service name: ........ {}", self.service.get_name());
         println!("Repo token: .......... [{}]", self.repo_token.as_ref().unwrap_or(&empty));
@@ -261,16 +277,17 @@ impl Config {
         println!("Service job ID: ...... [{}]", self.service_job_id.as_ref().unwrap_or(&empty));
         println!("Service job name: .... [{}]", self.service_job_name.as_ref().unwrap_or(&empty));
         println!("Service job number: .. [{}]", self.service_job_number.as_ref().unwrap_or(&empty));
-        println!("Git ID: .............. [{}]", self.git_id.as_ref().unwrap_or(&empty));
-        println!("Git branch: .......... [{}]", self.git_branch.as_ref().unwrap_or(&empty));
-        println!("Git tag: ............. [{}]", self.git_tag.as_ref().unwrap_or(&empty));
-        println!("Git author name: ..... [{}]", self.git_author_name.as_ref().unwrap_or(&empty));
-        println!("Git author email: .... [{}]", self.git_author_email.as_ref().unwrap_or(&empty));
-        println!("Git committer name: .. [{}]", self.git_committer_name.as_ref().unwrap_or(&empty));
-        println!("Git committer email: . [{}]", self.git_committer_email.as_ref().unwrap_or(&empty));
-        println!("Git remote name: ..... [{}]", self.git_remote_name.as_ref().unwrap_or(&empty));
-        println!("Git remote URL: ...... [{}]", self.git_remote_url.as_ref().unwrap_or(&empty));
-        println!("Git message: ......... [{}]", self.git_message.as_ref().unwrap_or(&empty));
+
+        println!("Git ID: .............. [{}]", git_id.unwrap_or(&empty));
+        println!("Git branch: .......... [{}]", git_branch.unwrap_or(&empty));
+        println!("Git tag: ............. [{}]", git_tag.unwrap_or(&empty));
+        println!("Git author name: ..... [{}]", git_author_name.unwrap_or(&empty));
+        println!("Git author email: .... [{}]", git_author_email.unwrap_or(&empty));
+        println!("Git committer name: .. [{}]", git_committer_name.unwrap_or(&empty));
+        println!("Git committer email: . [{}]", git_committer_email.unwrap_or(&empty));
+        println!("Git remote name: ..... [{}]", git_remote_name.unwrap_or(&empty));
+        println!("Git remote URL: ...... [{}]", git_remote_url.unwrap_or(&empty));
+        println!("Git message: ......... [{}]", git_message.unwrap_or(&empty));
         println!();
     }
 }
