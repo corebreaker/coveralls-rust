@@ -1,0 +1,53 @@
+name: Update milestone on release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-milestone:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Update matching milestone
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+          URL: ${{ github.event.release.html_url }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          REPO="${{ github.repository }}"
+          REVISION=$(echo "$TAG" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+
+          if [ -z "$REVISION" ]; then
+            echo "Impossible d'extraire une révision X.Y.Z depuis le tag $TAG"
+            exit 0
+          fi
+
+          NUM=$(gh api repos/$REPO/milestones --jq ".[] | select(.title | contains(\"$REVISION\")) | .number" | head -n1)
+
+          if [ -z "$NUM" ]; then
+            echo "Aucun milestone ouvert ne correspond à la révision $REVISION"
+            exit 0
+          fi
+
+          CURRENT_DESC=$(gh api repos/$REPO/milestones/$NUM --jq '.description // ""')
+
+          if [ "$PRERELEASE" = "true" ]; then
+            NEW_LINE="Pre-release: [$TAG]($URL)"
+            CLOSE=false
+          else
+            NEW_LINE="Release: [$TAG]($URL)"
+            CLOSE=true
+          fi
+
+          if [ -n "$CURRENT_DESC" ]; then
+            NEW_DESC=$(printf '%s\n\n---\n%s' "$CURRENT_DESC" "$NEW_LINE")
+          else
+            NEW_DESC="$NEW_LINE"
+          fi
+
+          jq -n --arg desc "$NEW_DESC" --argjson close "$CLOSE" \
+            '{description: $desc} + (if $close then {state: "closed"} else {} end)' \
+          | gh api repos/$REPO/milestones/$NUM -X PATCH --input -
