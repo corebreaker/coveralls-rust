@@ -1,5 +1,8 @@
+//! Loading of the Travis-CI `TRAVIS_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the Travis-CI environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("TRAVIS_BRANCH")? {
         config.git_branch.replace(v);
@@ -14,7 +17,9 @@ pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     }
 
     if let Some(v) = env.get_var("TRAVIS_PULL_REQUEST")? {
-        config.service_pull_request.replace(v.split("/").last().unwrap_or(&v).to_string());
+        config
+            .service_pull_request
+            .replace(v.split("/").last().unwrap_or(&v).to_string());
     }
 
     if let Some(v) = env.get_var("TRAVIS_BUILD_WEB_URL")? {

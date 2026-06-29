@@ -1,5 +1,8 @@
+//! Loading of the generic `CI_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the generic `CI_*` environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("CI_PROJECT_ID")? {
         config.service_project_id.replace(v);

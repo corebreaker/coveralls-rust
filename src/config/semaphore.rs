@@ -1,5 +1,10 @@
+//! Loading of the Semaphore-CI `SEMAPHORE_*` environment variables.
+//!
+//! Both the classic and the 2.0 variable names are supported.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the Semaphore-CI environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("SEMAPHORE_GIT_BRANCH")? {
         config.git_branch.replace(v);

@@ -1,5 +1,8 @@
+//! Loading of the AppVeyor `APPVEYOR_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the AppVeyor environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("APPVEYOR_JOB_ID")? {
         config.service_job_id.replace(v);
