@@ -1,47 +1,18 @@
-use coveralls::{cli_args::CliArgs, CoverallsManager, Coverage, Env, Config};
-use simple_error::SimpleError;
-use clap::Parser;
-use std::{io::{Result, ErrorKind, Error, stdin}, process::exit, fs::File};
+//! Binary entry point of the `coveralls` command line tool.
+//!
+//! It initializes the logger and delegates the whole work to [`coveralls::work`], exiting with a
+//! non-zero status code when it fails.
 
-fn work() -> Result<()> {
-    let args = CliArgs::parse();
-    let env = Env::new();
-    let do_send = !args.no_send;
-    let config = {
-        let config = match Config::load_from_command(&args, &env)? {
-            Some(v) => Some(v),
-            None => Config::load_from_environment(&env)?,
-        };
+use coveralls::work;
+use log::error;
+use std::process::exit;
 
-        match config {
-            Some(v) => v.init_parameters(&args),
-            None => {
-                return Err(Error::new(ErrorKind::Other, SimpleError::new("No service name found")));
-            }
-        }
-    };
-
-    let manager = CoverallsManager::new();
-
-    let mut coverage = if let Some(input) = &args.input {
-        Coverage::from_reader(File::open(input)?)?
-    } else {
-        Coverage::from_reader(stdin())?
-    };
-
-    manager.apply_config(&config, &mut coverage, args.force_fetch_git_infos)?;
-    config.show(coverage.git());
-
-    if do_send {
-        manager.send(&coverage)?;
-    }
-
-    Ok(())
-}
-
+/// Initialize logging and run the [`coveralls::work`] workflow, exiting with `1` on error.
 fn main() {
+    env_logger::init();
+
     if let Err(err) = work() {
-        eprintln!("{}", err);
+        error!("{err}");
         exit(1);
     }
 }
