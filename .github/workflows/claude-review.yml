@@ -1,0 +1,276 @@
+name: Claude PR Review
+
+# Déclenchement par commentaire sur une PR. Deux commandes distinctes :
+#
+#   /claude review              -> revue postée en commentaire, sans approbation
+#   /claude review and approve  -> revue postée, et approbation si la PR est jugée mergeable
+#
+# Les deux jobs sont mutuellement exclusifs grâce aux conditions `if` ci-dessous : la commande
+# d'approbation contient la sous-chaîne « and approve » et est donc exclue du job « review only ».
+#
+# Seul le propriétaire du dépôt peut déclencher ces commandes (comparaison de
+# `github.event.comment.user.login` avec `github.repository_owner`). Un commentaire posté par un
+# autre contributeur est ignoré, même s'il contient `/claude review`.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # =============================================================================================
+  # Revue informative : pas d'approbation, quel que soit le résultat de l'analyse.
+  # =============================================================================================
+  review:
+    name: Review only
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.login == github.repository_owner &&
+      startsWith(github.event.comment.body, '/claude review') &&
+      !contains(github.event.comment.body, 'and approve')
+
+    runs-on: ubuntu-latest
+    # Sérialise les revues sur une même PR : deux commandes successives ne lancent pas deux
+    # runners en parallèle. La revue déjà en cours est annulée au profit de la plus récente,
+    # ce qui évite qu'un commentaire obsolète arrive après le commentaire à jour.
+    concurrency:
+      group: claude-review-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Generate installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_KEY }}
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 0
+
+      - name: Run Claude review
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          model: "claude-sonnet-4-6"
+          trigger_phrase: "/claude review"
+          direct_prompt: |
+            Tu es expert en revue de code. Avant toute analyse, lis `CLAUDE.md` à la racine et
+            applique strictement les conventions qu'il décrit (langue des commentaires, largeur de
+            ligne, gestion des erreurs `MhResult`, pas d'`unwrap` en production, noms de tests en
+            anglais, séparateurs de section dans les tests, etc.).
+
+            Effectue une revue de la PR #${{ github.event.issue.number }} :
+
+            1. Récupère le diff complet via `gh pr diff ${{ github.event.issue.number }}` et le
+               descriptif via `gh pr view ${{ github.event.issue.number }}`.
+            2. Récupère le SHA du commit HEAD :
+               `gh pr view ${{ github.event.issue.number }} --json headRefOid --jq .headRefOid`
+            3. Récupère l'historique des revues et échanges précédents :
+               - Revues passées :
+                 `gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/reviews`
+               - Commentaires inline et leurs réponses :
+                 `gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/comments`
+               - Commentaires généraux de la PR :
+                 `gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments`
+               Pour chaque point soulevé dans une revue précédente, détermine son statut :
+               - **Résolu** : une réponse indique que c'est traité (ex. « Fixed », « Done »,
+                 « Corrigé ») ou le diff montre que le code a changé en conséquence.
+               - **Ouvert** : aucune réponse ou le problème subsiste dans le diff actuel.
+               Ne ressoulève pas un point résolu. Mentionne « (déjà signalé, toujours ouvert) »
+               pour les points ouverts repris de la revue précédente.
+            4. Identifie les issues liées via
+               `gh pr view ${{ github.event.issue.number }} --json closingIssuesReferences`.
+               Pour chaque issue trouvée, récupère son descriptif via `gh issue view <num>`.
+               Le descriptif d'une issue liée éclaire l'**objectif initial** de la PR. Toutefois,
+               certains commits peuvent légitimement réaliser des choses **en plus** de cet objectif :
+               ne traite pas un dépassement de périmètre comme un défaut, sauf si le descriptif de la
+               PR ou de l'issue interdit explicitement ces ajouts.
+            5. Analyse les changements selon ces axes : correction (logique, lifetimes, sûreté
+               `unsafe`, gestion d'erreurs), conformité aux conventions du projet, performance,
+               sécurité, couverture de tests.
+            6. Classe les points relevés par sévérité : **Critique** (bug/UB/sécurité), **Important**
+               (régression probable, contrat ambigu, dette qui bloquera vite), **Mineur** (lisibilité,
+               redondance, code mort).
+            7. Rédige une revue structurée en français comprenant :
+               - si une revue précédente existait : une section **Suivi** listant les points résolus
+                 depuis la dernière revue,
+               - un récapitulatif des aspects positifs,
+               - un tableau des points par sévérité (nouveaux et ouverts).
+            8. Poste la revue via l'API GitHub en une seule requête qui inclut à la fois le résumé
+               global ET les commentaires inline sur les lignes précises du diff :
+
+               ```bash
+               gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/reviews \
+                 --method POST \
+                 --input review.json
+               ```
+
+               Format de `review.json` :
+               ```json
+               {
+                 "commit_id": "<SHA obtenu à l'étape 2>",
+                 "body": "<résumé global de la revue en markdown>",
+                 "event": "COMMENT",
+                 "comments": [
+                   {
+                     "path": "crates/data/src/...",
+                     "line": 42,
+                     "side": "RIGHT",
+                     "body": "**[Important]** Explication du problème sur cette ligne."
+                   }
+                 ]
+               }
+               ```
+
+               Règles pour les commentaires inline :
+               - N'ajoute un commentaire inline que sur une ligne effectivement présente dans le diff
+                 (lignes ajoutées `+` ou contexte). Pour une ligne ajoutée, `"side": "RIGHT"`.
+               - `"line"` est le numéro de ligne dans le fichier final (tel qu'indiqué dans l'en-tête
+                 `@@ -X,Y +START,COUNT @@` du diff).
+               - Préfixe chaque commentaire par sa sévérité entre crochets : `[Critique]`, `[Important]`
+                 ou `[Mineur]`.
+               - Ne répète pas en inline un point déjà commenté inline dans une revue précédente et
+                 non résolu : il est déjà visible dans le fil de discussion de cette ligne.
+               - Si aucun point ne mérite de commentaire inline, `"comments"` peut être un tableau vide.
+
+            **Ne tente PAS d'approuver la PR.** Cette commande est exclusivement informative,
+            quel que soit le résultat de ton analyse.
+          allowed_tools: "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*),Bash(gh api:*)"
+
+  # =============================================================================================
+  # Revue + approbation conditionnelle. L'approbation n'est posée qu'en l'absence de problème
+  # Critique ou Important. Sinon la revue est postée en commentaire avec la justification du refus.
+  # =============================================================================================
+  review-and-approve:
+    name: Review and approve if satisfactory
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.login == github.repository_owner &&
+      contains(github.event.comment.body, '/claude review and approve')
+    runs-on: ubuntu-latest
+    # Mêmes règles de sérialisation que pour le job `review`. Les deux jobs partagent
+    # délibérément le même `group` afin qu'une commande d'approbation annule une revue
+    # informative en cours (et inversement) sur la même PR.
+    concurrency:
+      group: claude-review-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Generate installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_KEY }}
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 0
+
+      - name: Run Claude review with conditional approval
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          model: "claude-sonnet-4-6"
+          trigger_phrase: "/claude review and approve"
+          direct_prompt: |
+            Tu es expert en revue de code. Avant toute analyse, lis `CLAUDE.md` à la racine et
+            applique strictement les conventions qu'il décrit (langue des commentaires, largeur de
+            ligne, gestion des erreurs `MhResult`, pas d'`unwrap` en production, noms de tests en
+            anglais, séparateurs de section dans les tests, etc.).
+
+            Effectue une revue de la PR #${{ github.event.issue.number }} :
+
+            1. Récupère le diff complet via `gh pr diff ${{ github.event.issue.number }}` et le
+               descriptif via `gh pr view ${{ github.event.issue.number }}`.
+            2. Récupère le SHA du commit HEAD :
+               `gh pr view ${{ github.event.issue.number }} --json headRefOid --jq .headRefOid`
+            3. Récupère l'historique des revues et échanges précédents :
+               - Revues passées :
+                 `gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/reviews`
+               - Commentaires inline et leurs réponses :
+                 `gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/comments`
+               - Commentaires généraux de la PR :
+                 `gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments`
+               Pour chaque point soulevé dans une revue précédente, détermine son statut :
+               - **Résolu** : une réponse indique que c'est traité (ex. « Fixed », « Done »,
+                 « Corrigé ») ou le diff montre que le code a changé en conséquence.
+               - **Ouvert** : aucune réponse ou le problème subsiste dans le diff actuel.
+               Ne ressoulève pas un point résolu. Mentionne « (déjà signalé, toujours ouvert) »
+               pour les points ouverts repris de la revue précédente.
+            4. Identifie les issues liées via
+               `gh pr view ${{ github.event.issue.number }} --json closingIssuesReferences`.
+               Pour chaque issue trouvée, récupère son descriptif via `gh issue view <num>`.
+               Le descriptif d'une issue liée éclaire l'**objectif initial** de la PR. Toutefois,
+               certains commits peuvent légitimement réaliser des choses **en plus** de cet objectif :
+               ne traite pas un dépassement de périmètre comme un défaut, sauf si le descriptif de la
+               PR ou de l'issue interdit explicitement ces ajouts.
+            5. Analyse les changements selon ces axes : correction (logique, lifetimes, sûreté
+               `unsafe`, gestion d'erreurs), conformité aux conventions du projet, performance,
+               sécurité, couverture de tests.
+            6. Classe les points relevés par sévérité : **Critique** (bug/UB/sécurité), **Important**
+               (régression probable, contrat ambigu, dette qui bloquera vite), **Mineur** (lisibilité,
+               redondance, code mort).
+            7. Décide :
+               - **Approuver** si et seulement si aucun point Critique ni Important n'est relevé.
+               - **Demander des modifications** dans tout autre cas.
+            8. Rédige une revue structurée en français comprenant :
+               - si une revue précédente existait : une section **Suivi** listant les points résolus
+                 depuis la dernière revue,
+               - les aspects positifs en tête,
+               - le tableau des points par sévérité (nouveaux et ouverts),
+               - une section finale **Décision** indiquant explicitement « Approuvé » ou
+                 « Modifications demandées » avec la justification.
+            9. Poste la revue via l'API GitHub en une seule requête qui inclut à la fois le résumé
+               global ET les commentaires inline sur les lignes précises du diff :
+
+               ```bash
+               gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}/reviews \
+                 --method POST \
+                 --input review.json
+               ```
+
+               Format de `review.json` (adapte `"event"` selon la décision) :
+               ```json
+               {
+                 "commit_id": "<SHA obtenu à l'étape 2>",
+                 "body": "<résumé global de la revue en markdown>",
+                 "event": "APPROVE",
+                 "comments": [
+                   {
+                     "path": "crates/data/src/...",
+                     "line": 42,
+                     "side": "RIGHT",
+                     "body": "**[Mineur]** Explication."
+                   }
+                 ]
+               }
+               ```
+
+               Valeurs possibles pour `"event"` :
+               - `"APPROVE"` — aucun point Critique ni Important
+               - `"REQUEST_CHANGES"` — au moins un point Critique ou Important
+
+               Règles pour les commentaires inline :
+               - N'ajoute un commentaire inline que sur une ligne effectivement présente dans le diff
+                 (lignes ajoutées `+` ou contexte). Pour une ligne ajoutée, `"side": "RIGHT"`.
+               - `"line"` est le numéro de ligne dans le fichier final (tel qu'indiqué dans l'en-tête
+                 `@@ -X,Y +START,COUNT @@` du diff).
+               - Préfixe chaque commentaire par sa sévérité entre crochets : `[Critique]`, `[Important]`
+                 ou `[Mineur]`.
+               - Ne répète pas en inline un point déjà commenté inline dans une revue précédente et
+                 non résolu : il est déjà visible dans le fil de discussion de cette ligne.
+               - Si aucun point ne mérite de commentaire inline, `"comments"` peut être un tableau vide.
+
+            Ne contourne jamais les critères : un seul point Critique ou Important suffit à imposer
+            `"REQUEST_CHANGES"` et interdit `"APPROVE"`.
+          allowed_tools: "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*),Bash(gh api:*)"
