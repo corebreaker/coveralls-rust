@@ -1,5 +1,8 @@
+//! Loading of the GitHub Actions `GITHUB_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the GitHub Actions environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_github_actions_branch()? {
         config.git_branch.replace(v);

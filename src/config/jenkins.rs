@@ -1,5 +1,8 @@
+//! Loading of the Jenkins environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the Jenkins environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("BUILD_ID")? {
         config.service_job_id.replace(v);
@@ -10,7 +13,9 @@ pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     }
 
     if let Some(v) = env.get_var("CI_PULL_REQUEST")? {
-        config.service_pull_request.replace(v.split("/").last().unwrap_or(&v).to_string());
+        config
+            .service_pull_request
+            .replace(v.split("/").last().unwrap_or(&v).to_string());
     }
 
     if let Some(v) = env.get_var("BUILD_URL")? {

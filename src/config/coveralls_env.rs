@@ -1,5 +1,8 @@
+//! Loading of the Coveralls `COVERALLS_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the Coveralls-specific environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("COVERALLS_SERVICE_NUMBER")? {
         config.service_build_number.replace(v);

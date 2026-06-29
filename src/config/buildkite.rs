@@ -1,5 +1,8 @@
+//! Loading of the BuildKite `BUILDKITE_*` environment variables.
+
 use super::{Config, Env, Result};
 
+/// Fill `config` with the BuildKite environment variables.
 pub(super) fn load_config(config: &mut Config, env: &Env) -> Result<()> {
     if let Some(v) = env.get_var("BUILDKITE_JOB_ID")? {
         config.service_job_id.replace(v);
