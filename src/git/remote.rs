@@ -55,7 +55,7 @@ impl GitRemote {
 
     /// Build a remote from the configuration when both its name and URL are set.
     pub(super) fn fetch_from_config(config: &Config) -> Option<Self> {
-        if let Some(name) = config.git_message.clone() {
+        if let Some(name) = config.git_remote_name.clone() {
             if let Some(url) = config.git_remote_url.clone() {
                 return Some(Self::new((name, url)));
             }

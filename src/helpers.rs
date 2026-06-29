@@ -27,3 +27,21 @@ fn path_component_as_str(c: Component) -> Option<Cow<str>> {
 pub(super) fn path_to_string(path: &PathBuf) -> String {
     path.components().filter_map(path_component_as_str).join("/")
 }
+
+/// Mask a secret for logging, keeping only the last few characters visible.
+///
+/// A secret long enough to spare a hint is rendered as `****` followed by its last four characters;
+/// shorter (or empty) values are fully masked. This lets logs be shared safely while still letting
+/// an operator tell which secret is in use.
+pub(super) fn mask_secret(secret: &str) -> String {
+    const VISIBLE: usize = 4;
+
+    let len = secret.chars().count();
+    if len > VISIBLE * 2 {
+        let tail = secret.chars().skip(len - VISIBLE).collect::<String>();
+
+        format!("****{tail}")
+    } else {
+        String::from("****")
+    }
+}

@@ -82,10 +82,7 @@ impl GitHead {
 
         if let Some(id) = infos.id() {
             debug!("Fetched HEAD commit `{id}`");
-        }
-
-        if let Some(v) = infos.id() {
-            self.id = v.to_string();
+            self.id = id.to_string();
         }
 
         if let Some(v) = infos.author_name() {

@@ -24,7 +24,7 @@ use crate::{
 
 use itertools::Itertools;
 use simple_error::SimpleError;
-use log::{debug, info};
+use log::{debug, info, warn};
 use std::{
     io::{Result, Error, ErrorKind},
     path::PathBuf,
@@ -179,6 +179,8 @@ impl Config {
 
                 Ok(Some(config))
             } else {
+                warn!("CI_NAME=`{name}` designates a service that is not implemented");
+
                 let msg = format!("Service name `{}` is not implemented", name);
 
                 Err(Error::new(ErrorKind::Other, SimpleError::new(msg)))
@@ -194,6 +196,8 @@ impl Config {
 
                 Ok(Some(config))
             } else {
+                warn!("COVERALLS_SERVICE_NAME=`{name}` designates a service that is not implemented");
+
                 let msg = format!("Service name `{}` is not implemented", name);
 
                 Err(Error::new(ErrorKind::Other, SimpleError::new(msg)))
@@ -333,8 +337,8 @@ impl Config {
     ///
     /// The Git fields fall back to the values discovered in `git` (the metadata collected from the
     /// repository) when they were not set explicitly. This is meant as a human-readable recap of
-    /// what will be sent; the repository token is printed as-is, so keep the log level in mind when
-    /// secrets matter.
+    /// what will be sent; the repository token is masked (only its last few characters are shown) so
+    /// the log can be shared safely.
     pub fn show(&self, git: Option<&GitInfos>) {
         let empty = String::new();
         let prune_dirs = self.param_prune_dirs.iter().map(helpers::path_to_string).join(", ");
@@ -389,7 +393,7 @@ impl Config {
         info!("Service name: ........ {}", self.service.get_name());
         info!(
             "Repo token: .......... [{}]",
-            self.repo_token.as_ref().unwrap_or(&empty)
+            self.repo_token.as_deref().map(helpers::mask_secret).unwrap_or_default()
         );
 
         info!(

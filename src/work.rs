@@ -29,6 +29,15 @@ use std::{
 pub fn work() -> Result<()> {
     let args = CliArgs::parse();
     let env = Env::new();
+
+    run(args, env)
+}
+
+/// Run the workflow on already-resolved inputs.
+///
+/// This is the body of [`work`] with the command line arguments and the environment passed in
+/// rather than read from the process, so the whole workflow can be driven from tests.
+fn run(args: CliArgs, env: Env) -> Result<()> {
     let do_send = !args.no_send;
 
     debug!(
@@ -85,4 +94,52 @@ pub fn work() -> Result<()> {
     debug!("Coverage processing finished");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{fs, process};
+
+    /// End-to-end dry run: read a report, enrich it and write the payload without uploading it.
+    ///
+    /// The Git metadata is fetched from the crate's own repository (the working directory during
+    /// the tests), which is why the test relies on `cargo test` being run from a checkout.
+    #[test]
+    fn run_dry_run_writes_payload_without_sending() {
+        let dir = std::env::temp_dir().join(format!("coveralls-work-test-{}", process::id()));
+        fs::create_dir_all(&dir).expect("create the temporary directory");
+
+        let input = dir.join("coverage.json");
+        let output = dir.join("payload.json");
+
+        fs::write(&input, r#"{"source_files":[]}"#).expect("write the coverage fixture");
+
+        let token = "secret-token-1234567890";
+        let args = CliArgs::try_parse_from([
+            "coveralls",
+            "--no-send",
+            "--output",
+            output.to_str().unwrap(),
+            input.to_str().unwrap(),
+            "circleci",
+            "--repo-token",
+            token,
+        ])
+        .expect("parse the command line arguments");
+
+        let result = run(args, Env::new());
+
+        // Clean up before asserting so a failure does not leave the temporary files behind.
+        let payload = fs::read_to_string(&output);
+        fs::remove_dir_all(&dir).ok();
+
+        result.expect("the dry-run workflow should succeed");
+
+        let json: serde_json::Value =
+            serde_json::from_str(&payload.expect("the payload should have been written")).expect("a valid JSON payload");
+
+        assert_eq!(json["service_name"], "circleci");
+        assert_eq!(json["repo_token"], token);
+    }
 }
